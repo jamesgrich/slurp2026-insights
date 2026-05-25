@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Slurp! 2026 — Insights</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080e09; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: #f0f7f1; font-size: 16px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+  .print-btn { background: #ffffff; color: #0e2f14; border: none; border-radius: 10px; padding: 8px 18px; font-size: 0.9rem; font-weight: 700; cursor: pointer; letter-spacing: 0.04em; margin-top: 10px; }
+  .print-btn:hover { background: #f0f0f0; }
+  .card { width: min(960px, 100%); background: #0e1710; border-radius: 20px; box-shadow: 0 24px 80px rgba(0,0,0,0.7); }
+  @media print {
+    * { animation: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { padding: 0; background: #080e09; }
+    .print-btn { display: none; }
+    .card { box-shadow: none; border-radius: 0; width: 100%; }
+    .header { border-radius: 0; }
+    .stat-num, .secondary-num { -webkit-text-fill-color: #52c97a !important; background: none !important; color: #52c97a !important; }
+    .bar, .spin-bar, .axis-bar, .dist-bar, .gap-bar, .day-metric-bar, .hour-bar { transform: none !important; }
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 0; }
+    .card { border-radius: 0; }
+    .header { padding: 24px 20px 20px; border-radius: 0; }
+    .title { font-size: 2rem; }
+    .stats-strip, .secondary-strip { flex-wrap: wrap; }
+    .stat, .secondary-stat { flex: 1 1 50%; border-right: none; border-bottom: 1px solid #2c3f2e; padding: 16px 12px; }
+    .stat:nth-child(odd), .secondary-stat:nth-child(odd) { border-right: 1px solid #2c3f2e; }
+    .stat-num, .secondary-num { font-size: 2rem; }
+    .two-col { grid-template-columns: 1fr; }
+    .section { border-right: none; border-top: 1px solid #1c2c1e; padding: 24px 20px; }
+    .full-width { padding: 24px 20px; }
+    .axis-grid { grid-template-columns: 1fr 1fr; }
+    .spin-label { width: 120px; }
+    .gap-info { width: 110px; }
+    .taster-card { padding: 16px; }
+    .hour-chart { gap: 3px; }
+    .hour-label { font-size: 0.6rem; }
+    .stat-tooltip { left: 0; transform: none; }
+  }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #0e2f14 0%, #1a4420 50%, #0e2f14 100%); padding: 40px 44px 32px; position: relative; overflow: hidden; border-bottom: 1px solid #2c3f2e; border-radius: 20px 20px 0 0; }
+  .header::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 70% 50%, rgba(82,201,122,0.15) 0%, transparent 60%); }
+  .header::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#52c97a,#e8a23a,#52c97a); border-radius:20px 20px 0 0; }
+  .header-top { display:flex; align-items:flex-start; justify-content:space-between; position:relative; }
+  .logo-img { height:36px; width:auto; display:block; margin-bottom:14px; filter:brightness(0) invert(1); opacity:0.9; }
+  .logo-text { font-size:1.1rem; font-weight:900; letter-spacing:0.06em; color:#52c97a; margin-bottom:10px; text-transform:uppercase; }
+  .title { font-size: 3.2rem; font-weight:900; letter-spacing:-0.02em; line-height:1; color:#f0f7f1; text-shadow: 0 2px 30px rgba(82,201,122,0.3); }
+  .date-badge { background:rgba(82,201,122,0.12); border:1px solid rgba(82,201,122,0.25); border-radius:20px; padding:8px 18px; font-size:0.9rem; color:#52c97a; font-weight:600; white-space:nowrap; margin-top:4px; }
+  .header-tagline { display:flex; justify-content:space-between; margin-top:22px; padding-top:20px; border-top:1px solid rgba(82,201,122,0.18); position:relative; flex-wrap:wrap; gap:16px; }
+  .header-stat { display:flex; flex-direction:column; gap:2px; flex:1; min-width:80px; }
+  .header-stat-num { font-size:1.8rem; font-weight:900; color:#52c97a; letter-spacing:-0.02em; line-height:1; }
+  .header-stat-label { font-size:0.75rem; color:rgba(82,201,122,0.7); text-transform:uppercase; letter-spacing:0.08em; font-weight:600; }
+
+  /* Stats strip */
+  .stats-strip { display:flex; border-bottom:1px solid #2c3f2e; }
+  .stat { flex:1; padding:22px 28px; border-right:1px solid #2c3f2e; text-align:center; position:relative; cursor:default; }
+  .stat:last-child { border-right:none; }
+  .stat:hover .stat-tooltip { display:block; }
+  .stat-num { font-size:2.6rem; font-weight:900; background:linear-gradient(135deg,#52c97a 0%,#e8a23a 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:-0.03em; }
+  .stat-label { font-size:0.8rem; color:#7aaa80; margin-top:6px; line-height:1.4; }
+
+  /* Stat tooltips (engagement strip) */
+  .secondary-stat { position:relative; cursor:default; }
+  .stat-tooltip { display:none; position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); background:#141f15; border:1px solid #2c3f2e; border-radius:10px; padding:10px 14px; z-index:10; min-width:140px; pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,0.5); }
+  .secondary-stat:hover .stat-tooltip { display:block; }
+  .stat-tooltip-title { font-size:0.82rem; font-weight:700; color:#52c97a; margin-bottom:6px; white-space:nowrap; }
+  .stat-tooltip-row { font-size:0.78rem; color:#d4edda; white-space:nowrap; padding:2px 0; border-top:1px solid #2c3f2e; margin-top:2px; }
+
+  /* Secondary stats strip */
+  .secondary-strip { display:flex; border-bottom:1px solid #2c3f2e; }
+  .secondary-stat { flex:1; padding:22px 28px; border-right:1px solid #2c3f2e; text-align:center; }
+  .secondary-stat:last-child { border-right:none; }
+  .secondary-num { font-size:2.6rem; font-weight:900; background:linear-gradient(135deg,#52c97a 0%,#e8a23a 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:-0.03em; }
+  .secondary-label { font-size:0.8rem; color:#7aaa80; margin-top:6px; line-height:1.4; }
+
+  /* Layout */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid #1c2c1e; }
+  .section { padding:32px 36px; border-right:1px solid #1c2c1e; }
+  .section:last-child { border-right:none; }
+  .full-width { padding:32px 36px; border-top:1px solid #1c2c1e; }
+  .section-head { display:flex; align-items:center; gap:10px; margin-bottom:22px; padding-bottom:12px; border-bottom:1px solid #1c2c1e; }
+  .section-icon { font-size:1.6rem; }
+  .section-title { font-size:0.85rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#7aaa80; }
+
+  /* Bar animations */
+  @keyframes fillH { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+  @keyframes fillV { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+  .bar, .spin-bar, .axis-bar, .dist-bar, .gap-bar, .day-metric-bar { transform-origin:left center; animation:fillH 0.9s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+  .hour-bar { transform-origin:center bottom; animation:fillV 0.9s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+
+  /* Beer rows */
+  .beer-row { display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid #1c2c1e; position:relative; }
+  .beer-row:last-child { border-bottom:none; }
+  .beer-row.top-rank { background:rgba(232,162,58,0.07); border-radius:10px; margin:0 -10px; padding:12px 10px; border-bottom:none; }
+  .beer-row.has-tooltip { cursor:default; }
+  .beer-tooltip { display:none; position:absolute; top:calc(100% + 4px); left:0; background:#141f15; border:1px solid #2c3f2e; border-radius:12px; padding:12px 16px; z-index:20; min-width:220px; pointer-events:none; box-shadow:0 8px 28px rgba(0,0,0,0.6); }
+  .beer-row.has-tooltip:hover .beer-tooltip { display:block; }
+  .beer-tooltip-title { font-size:0.82rem; font-weight:700; color:#52c97a; margin-bottom:8px; white-space:nowrap; }
+  .beer-tooltip-row { display:flex; align-items:center; gap:8px; padding:3px 0; }
+  .beer-tooltip-axis { font-size:0.75rem; color:#7aaa80; width:90px; flex-shrink:0; }
+  .beer-tooltip-bar-wrap { flex:1; height:5px; background:#1c2c1e; border-radius:3px; }
+  .beer-tooltip-bar { height:5px; background:linear-gradient(90deg,#52c97a,#e8a23a); border-radius:3px; }
+  .beer-tooltip-score { font-size:0.75rem; font-weight:700; color:#f0f7f1; width:24px; text-align:right; flex-shrink:0; }
+  .rank { font-size:0.85rem; font-weight:700; color:#2c3f2e; width:22px; text-align:center; flex-shrink:0; }
+  .rank.gold { color:#e8a23a; font-size:1.1rem; }
+  .beer-info { flex:1; min-width:0; }
+  .beer-name { font-size:1rem; font-weight:700; color:#f0f7f1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .beer-brewery { font-size:0.85rem; color:#7aaa80; margin-top:2px; }
+  .bar-wrap { height:7px; background:#1c2c1e; border-radius:4px; margin-top:8px; overflow:hidden; }
+  .bar { height:7px; background:linear-gradient(90deg,#52c97a,#e8a23a); border-radius:4px; box-shadow:0 0 8px rgba(82,201,122,0.5); }
+  .beer-stats { text-align:right; flex-shrink:0; }
+  .avg { font-size:1.3rem; font-weight:900; color:#52c97a; }
+  .count { font-size:0.78rem; color:#7aaa80; margin-top:2px; }
+
+  /* Spin the wheel */
+  .spin-section { padding:28px 36px; border-top:1px solid #1c2c1e; background:#0e1710; }
+  .spin-banner { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .spin-qualifier-badge { background:linear-gradient(90deg,#e8a23a22,#e8a23a44); border:1px solid #e8a23a55; border-radius:20px; padding:6px 16px; font-size:0.88rem; font-weight:700; color:#e8a23a; }
+  .spin-row { display:flex; align-items:center; gap:14px; padding:9px 0; border-bottom:1px solid #1c2c1e; }
+  .spin-row:last-child { border-bottom:none; }
+  .spin-row.qualified { background:rgba(232,162,58,0.05); margin:0 -8px; padding:9px 8px; border-radius:8px; border-bottom:none; }
+  .spin-label { width:180px; flex-shrink:0; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .spin-name { font-size:0.95rem; font-weight:700; color:#f0f7f1; }
+  .spin-status { font-size:0.8rem; color:#4a6b4e; }
+  .spin-status.q { color:#e8a23a; font-weight:700; }
+  .spin-bar-wrap { flex:1; height:10px; background:#1c2c1e; border-radius:5px; overflow:hidden; }
+  .spin-bar { height:10px; background:#2c3f2e; border-radius:5px; }
+  .spin-bar.q { background:linear-gradient(90deg,#52c97a,#e8a23a); box-shadow:0 0 10px rgba(82,201,122,0.5); }
+  .spin-count { font-size:0.85rem; color:#4a6b4e; width:48px; text-align:right; flex-shrink:0; }
+  .spin-avg { font-size:0.85rem; color:#52c97a; font-weight:700; width:42px; text-align:right; flex-shrink:0; }
+
+  /* Axis breakdown */
+  .axis-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .axis-card { background:#141f15; border-radius:12px; padding:14px 16px; }
+  .axis-header { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:nowrap; }
+  .axis-icon { font-size:1rem; flex-shrink:0; }
+  .axis-name { font-size:0.85rem; font-weight:700; color:#f0f7f1; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .axis-score { font-size:1rem; font-weight:900; color:#52c97a; flex-shrink:0; white-space:nowrap; }
+  .axis-bar-wrap { height:8px; background:#1c2c1e; border-radius:4px; margin-bottom:8px; overflow:hidden; }
+  .axis-bar { height:8px; background:linear-gradient(90deg,#52c97a,#e8a23a); border-radius:4px; box-shadow:0 0 8px rgba(82,201,122,0.45); }
+  .axis-stars { font-size:1rem; color:#e8a23a; letter-spacing:2px; margin-bottom:4px; }
+  .axis-top-beer { font-size:0.75rem; color:#d4edda; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:3px; }
+  .axis-top-score { font-weight:700; color:#52c97a; margin-left:4px; }
+  .axis-sample { font-size:0.72rem; color:#4a6b4e; }
+
+  /* Score distribution */
+  .dist-row { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid #1c2c1e; }
+  .dist-row:last-child { border-bottom:none; }
+  .dist-label { font-size:1rem; font-weight:700; color:#e8a23a; width:34px; flex-shrink:0; }
+  .dist-bar-wrap { flex:1; height:16px; background:#1c2c1e; border-radius:8px; overflow:hidden; }
+  .dist-bar { height:16px; background:linear-gradient(90deg,#52c97a,#e8a23a); border-radius:8px; box-shadow:0 0 10px rgba(82,201,122,0.5); }
+  .dist-n { font-size:1rem; font-weight:700; color:#f0f7f1; width:28px; text-align:right; flex-shrink:0; }
+  .dist-pct { font-size:0.78rem; color:#7aaa80; width:38px; text-align:right; flex-shrink:0; }
+
+  /* Activity by day */
+  .day-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; }
+  .day-card { background:#141f15; border-radius:12px; padding:18px 20px; }
+  .day-card.top { border:1px solid #52c97a44; background:#0e1710; }
+  .day-card-header { margin-bottom:14px; }
+  .day-card-name { font-size:1.1rem; font-weight:800; color:#f0f7f1; }
+  .day-card-date { font-size:0.82rem; color:#7aaa80; margin-top:2px; }
+  .day-metric { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .day-metric:last-child { margin-bottom:0; }
+  .day-metric-label { font-size:0.8rem; color:#7aaa80; width:96px; flex-shrink:0; }
+  .day-metric-bar-wrap { flex:1; height:10px; background:#1c2c1e; border-radius:5px; overflow:hidden; }
+  .day-metric-bar { height:10px; border-radius:5px; }
+  .day-metric-bar.rated { background:linear-gradient(90deg,#52c97a,#7aaa80); box-shadow:0 0 8px rgba(82,201,122,0.4); }
+  .day-metric-bar.tried { background:#e8a23a; box-shadow:0 0 8px rgba(232,162,58,0.4); }
+  .day-metric-bar.added { background:#4a6b4e; }
+  .day-metric-n { font-size:0.88rem; font-weight:700; color:#f0f7f1; width:24px; text-align:right; flex-shrink:0; }
+
+  /* Activity by hour */
+  .hour-chart { display:flex; align-items:flex-end; gap:5px; height:160px; margin-top:8px; }
+  .hour-hint { font-size:0.78rem; color:#4a6b4e; margin-top:10px; }
+  .hour-col { display:flex; flex-direction:column; align-items:center; flex:1; height:100%; min-width:0; cursor:default; position:relative; }
+  .hour-col:hover .hour-bar { background:linear-gradient(0deg,#e8a23a,#e8a23abb); }
+  .hour-tooltip { display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); background:#141f15; border:1px solid #2c3f2e; border-radius:10px; padding:10px 14px; z-index:10; min-width:130px; pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,0.5); }
+  .hour-col:hover .hour-tooltip { display:block; }
+  .hour-tooltip-title { font-size:0.82rem; font-weight:700; color:#52c97a; margin-bottom:6px; white-space:nowrap; }
+  .hour-tooltip-row { font-size:0.78rem; color:#d4edda; white-space:nowrap; padding:2px 0; border-top:1px solid #2c3f2e; margin-top:2px; }
+  .hour-bar-wrap { flex:1; width:100%; display:flex; align-items:flex-end; }
+  .hour-bar { width:100%; background:linear-gradient(0deg,#52c97a,#7aaa80aa); border-radius:4px 4px 0 0; min-height:3px; box-shadow:0 0 10px rgba(82,201,122,0.4); }
+  .hour-label { font-size:0.72rem; color:#7aaa80; margin-top:6px; white-space:nowrap; }
+
+  /* Wishlist vs tried */
+  .gap-row { display:flex; align-items:flex-start; gap:16px; padding:12px 0; border-bottom:1px solid #1c2c1e; }
+  .gap-row:last-child { border-bottom:none; }
+  .gap-info { width:160px; flex-shrink:0; }
+  .gap-name { font-size:0.95rem; font-weight:700; color:#f0f7f1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gap-brewery { font-size:0.85rem; color:#7aaa80; margin-top:2px; }
+  .gap-bars { flex:1; display:flex; flex-direction:column; gap:6px; }
+  .gap-bar-row { display:flex; align-items:center; gap:8px; }
+  .gap-bar-label { font-size:0.75rem; color:#4a6b4e; width:64px; flex-shrink:0; }
+  .gap-bar-wrap { flex:1; height:10px; background:#1c2c1e; border-radius:5px; overflow:hidden; }
+  .gap-bar { height:10px; border-radius:5px; }
+  .gap-bar.wishlist { background:#52c97a; opacity:0.6; box-shadow:0 0 8px rgba(82,201,122,0.4); }
+  .gap-bar.tried { background:#e8a23a; box-shadow:0 0 8px rgba(232,162,58,0.4); }
+  .gap-n { font-size:0.82rem; font-weight:700; color:#f0f7f1; width:20px; text-align:right; flex-shrink:0; }
+
+  /* Day placeholder */
+  .day-card.placeholder { opacity:0.4; border:1px dashed #2c3f2e; background:transparent; }
+  .day-placeholder-text { font-size:0.85rem; color:#4a6b4e; margin-top:12px; font-style:italic; }
+
+  /* Taster cards */
+  .taster-card { background:#141f15; border-radius:12px; padding:20px; text-align:center; }
+  .taster-emoji { font-size:2.2rem; margin-bottom:8px; }
+  .taster-label { font-size:0.72rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#7aaa80; margin-bottom:6px; }
+  .taster-name { font-size:1.1rem; font-weight:800; color:#f0f7f1; margin-bottom:4px; }
+  .taster-avg { font-size:2rem; font-weight:900; color:#52c97a; letter-spacing:-0.02em; }
+  .taster-stars { font-size:1.1rem; color:#e8a23a; letter-spacing:2px; margin:4px 0; }
+  .taster-count { font-size:0.8rem; color:#4a6b4e; margin-bottom:8px; }
+  .taster-flavour { font-size:0.8rem; color:#7aaa80; font-style:italic; }
+
+  /* Untappd */
+  .untappd-row { display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid #1c2c1e; }
+  .untappd-row:last-child { border-bottom:none; }
+  .untappd-info { flex:1; min-width:0; }
+  .untappd-name { font-size:0.95rem; font-weight:700; color:#f0f7f1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .untappd-brewery { font-size:0.82rem; color:#7aaa80; margin-top:2px; }
+  .untappd-n { font-size:1rem; font-weight:700; color:#52c97a; flex-shrink:0; }
+
+  /* Tasting notes */
+  .note-card { background:#141f15; border-left:4px solid #52c97a; border-radius:0 10px 10px 0; padding:14px 18px; margin-top:12px; }
+  .note-text { font-size:1rem; color:#d4edda; font-style:italic; line-height:1.6; }
+  .note-meta { font-size:0.82rem; color:#4a6b4e; margin-top:8px; }
+
+  /* Footer */
+  .footer { text-align:center; padding:10px 16px 16px; font-size:0.72rem; color:#4a6b4e; }
+  .footer a { color:#7aaa80; text-decoration:none; }
+  .footer a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <img class="logo-img" src="data:image/avif;base64,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" alt="Slurp! 2026">
+        <div class="title">Slurp! 2026</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+        <div class="date-badge">22 May – 25 May 2026</div>
+        <button class="print-btn" onclick="window.print()">Save as PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Engagement strip -->
+  <div class="secondary-strip">
+    <div class="secondary-stat">
+      <div class="stat-tooltip"><div class="stat-tooltip-title">App opens by day</div><div class="stat-tooltip-row">Fri 22 May: <strong>16</strong></div><div class="stat-tooltip-row">Sat 23 May: <strong>105</strong></div><div class="stat-tooltip-row">Sun 24 May: <strong>44</strong></div><div class="stat-tooltip-row">Mon 25 May: <strong>17</strong></div></div>
+      <div class="secondary-num">182</div><div class="secondary-label">App opens</div>
+    </div>
+    <div class="secondary-stat">
+      <div class="stat-tooltip"><div class="stat-tooltip-title">Active users by day</div><div class="stat-tooltip-row">Fri 22 May: <strong>5</strong></div><div class="stat-tooltip-row">Sat 23 May: <strong>24</strong></div><div class="stat-tooltip-row">Sun 24 May: <strong>9</strong></div><div class="stat-tooltip-row">Mon 25 May: <strong>3</strong></div></div>
+      <div class="secondary-num">36</div><div class="secondary-label">Unique active users</div>
+    </div>
+    <div class="secondary-stat">
+      <div class="stat-tooltip"><div class="stat-tooltip-title">Bar tab switches by day</div><div class="stat-tooltip-row">Fri 22 May: <strong>23</strong></div><div class="stat-tooltip-row">Sat 23 May: <strong>105</strong></div><div class="stat-tooltip-row">Sun 24 May: <strong>18</strong></div><div class="stat-tooltip-row">Mon 25 May: <strong>5</strong></div></div>
+      <div class="secondary-num">151</div><div class="secondary-label">Bar tab switches</div>
+    </div>
+    <div class="secondary-stat">
+      <div class="stat-tooltip"><div class="stat-tooltip-title">Unique beers wishlisted by day</div><div class="stat-tooltip-row">Fri 22 May: <strong>10</strong></div><div class="stat-tooltip-row">Sat 23 May: <strong>44</strong></div><div class="stat-tooltip-row">Sun 24 May: <strong>15</strong></div><div class="stat-tooltip-row">Mon 25 May: <strong>3</strong></div></div>
+      <div class="secondary-num">52</div><div class="secondary-label">Unique beers wishlisted</div>
+    </div>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-tooltip"><div class="stat-tooltip-title">Ratings by day</div><div class="stat-tooltip-row">Fri 22 May: <strong>5</strong></div><div class="stat-tooltip-row">Sat 23 May: <strong>42</strong></div><div class="stat-tooltip-row">Mon 25 May: <strong>3</strong></div></div><div class="stat-num">50</div><div class="stat-label">Ratings submitted</div></div>
+    <div class="stat"><div class="stat-tooltip"><div class="stat-tooltip-title">Unique beers rated by day</div><div class="stat-tooltip-row">Fri 22 May: <strong>3</strong></div><div class="stat-tooltip-row">Sat 23 May: <strong>19</strong></div><div class="stat-tooltip-row">Mon 25 May: <strong>1</strong></div></div><div class="stat-num">20</div><div class="stat-label">Different beers rated</div></div>
+    <div class="stat"><div class="stat-tooltip"><div class="stat-tooltip-title">Avg score by day</div><div class="stat-tooltip-row">Fri 22 May: <strong>4.2 / 5</strong></div><div class="stat-tooltip-row">Sat 23 May: <strong>3.79 / 5</strong></div><div class="stat-tooltip-row">Mon 25 May: <strong>4 / 5</strong></div></div><div class="stat-num">3.84<span style="font-size:1.2rem;font-weight:600"> / 5</span></div><div class="stat-label">Average score across all beers</div></div>
+    <div class="stat"><div class="stat-num">1</div><div class="stat-label">People who&apos;ve earned a spin</div></div>
+  </div>
+
+  <!-- Most rated + Top rated -->
+  <div class="two-col">
+    <div class="section">
+      <div class="section-head"><span class="section-icon">🔥</span><span class="section-title">Most Rated</span></div>
+      <div class="beer-row top-rank has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Another Day Done</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⚡ Bitterness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:40%"></div></div>
+            <span class="beer-tooltip-score">2.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">💪 Body</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:80%"></div></div>
+            <span class="beer-tooltip-score">4.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🌿 Hoppiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:100%"></div></div>
+            <span class="beer-tooltip-score">5.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:90%"></div></div>
+            <span class="beer-tooltip-score">4.5</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🍯 Sweetness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:40%"></div></div>
+            <span class="beer-tooltip-score">2.0</span>
+          </div>
+      </div>
+    <span class="rank gold">🥇</span>
+    <div class="beer-info">
+      <div class="beer-name">Another Day Done</div>
+      <div class="beer-brewery">Duration</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%"></div></div>
+    </div>
+    <div class="beer-stats">
+      
+      <div class="count">6 ratings</div>
+    </div>
+  </div><div class="beer-row has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Citra Fog Fresh</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🌿 Hoppiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:60%"></div></div>
+            <span class="beer-tooltip-score">3.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:90%"></div></div>
+            <span class="beer-tooltip-score">4.5</span>
+          </div>
+      </div>
+    <span class="rank">2</span>
+    <div class="beer-info">
+      <div class="beer-name">Citra Fog Fresh</div>
+      <div class="beer-brewery">Burnt Mill</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%"></div></div>
+    </div>
+    <div class="beer-stats">
+      
+      <div class="count">6 ratings</div>
+    </div>
+  </div><div class="beer-row has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Nexus</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⚡ Bitterness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:80%"></div></div>
+            <span class="beer-tooltip-score">4.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🍋 Fruitiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:80%"></div></div>
+            <span class="beer-tooltip-score">4.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🌿 Hoppiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:100%"></div></div>
+            <span class="beer-tooltip-score">5.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:90%"></div></div>
+            <span class="beer-tooltip-score">4.5</span>
+          </div>
+      </div>
+    <span class="rank">3</span>
+    <div class="beer-info">
+      <div class="beer-name">Nexus</div>
+      <div class="beer-brewery">Cloudwater</div>
+      <div class="bar-wrap"><div class="bar" style="width:83%"></div></div>
+    </div>
+    <div class="beer-stats">
+      
+      <div class="count">5 ratings</div>
+    </div>
+  </div><div class="beer-row has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Truck</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⚡ Bitterness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:60%"></div></div>
+            <span class="beer-tooltip-score">3.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">💪 Body</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:100%"></div></div>
+            <span class="beer-tooltip-score">5.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🌿 Hoppiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:80%"></div></div>
+            <span class="beer-tooltip-score">4.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:90%"></div></div>
+            <span class="beer-tooltip-score">4.5</span>
+          </div>
+      </div>
+    <span class="rank">4</span>
+    <div class="beer-info">
+      <div class="beer-name">Truck</div>
+      <div class="beer-brewery">Duration</div>
+      <div class="bar-wrap"><div class="bar" style="width:83%"></div></div>
+    </div>
+    <div class="beer-stats">
+      
+      <div class="count">5 ratings</div>
+    </div>
+  </div><div class="beer-row has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Shine #2</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⚡ Bitterness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:40%"></div></div>
+            <span class="beer-tooltip-score">2.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🍋 Fruitiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:60%"></div></div>
+            <span class="beer-tooltip-score">3.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:60%"></div></div>
+            <span class="beer-tooltip-score">3.0</span>
+          </div>
+      </div>
+    <span class="rank">5</span>
+    <div class="beer-info">
+      <div class="beer-name">Shine #2</div>
+      <div class="beer-brewery">Duration</div>
+      <div class="bar-wrap"><div class="bar" style="width:83%"></div></div>
+    </div>
+    <div class="beer-stats">
+      
+      <div class="count">5 ratings</div>
+    </div>
+  </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><span class="section-icon">⭐</span><span class="section-title">Highest Rated (2+ ratings)</span></div>
+      <div class="beer-row top-rank has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">On The Green</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:100%"></div></div>
+            <span class="beer-tooltip-score">5.0</span>
+          </div>
+      </div>
+    <span class="rank gold">🥇</span>
+    <div class="beer-info">
+      <div class="beer-name">On The Green</div>
+      <div class="beer-brewery">Baron</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg">5.0</div>
+      
+    </div>
+  </div><div class="beer-row has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Into The Ever Haze</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:90%"></div></div>
+            <span class="beer-tooltip-score">4.5</span>
+          </div>
+      </div>
+    <span class="rank">2</span>
+    <div class="beer-info">
+      <div class="beer-name">Into The Ever Haze</div>
+      <div class="beer-brewery">DEYA</div>
+      <div class="bar-wrap"><div class="bar" style="width:90%"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg">4.5</div>
+      
+    </div>
+  </div><div class="beer-row has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Nexus</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⚡ Bitterness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:80%"></div></div>
+            <span class="beer-tooltip-score">4.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🍋 Fruitiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:80%"></div></div>
+            <span class="beer-tooltip-score">4.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🌿 Hoppiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:100%"></div></div>
+            <span class="beer-tooltip-score">5.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:90%"></div></div>
+            <span class="beer-tooltip-score">4.5</span>
+          </div>
+      </div>
+    <span class="rank">3</span>
+    <div class="beer-info">
+      <div class="beer-name">Nexus</div>
+      <div class="beer-brewery">Cloudwater</div>
+      <div class="bar-wrap"><div class="bar" style="width:88%"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg">4.4</div>
+      
+    </div>
+  </div><div class="beer-row has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Truck</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⚡ Bitterness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:60%"></div></div>
+            <span class="beer-tooltip-score">3.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">💪 Body</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:100%"></div></div>
+            <span class="beer-tooltip-score">5.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">🌿 Hoppiness</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:80%"></div></div>
+            <span class="beer-tooltip-score">4.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:90%"></div></div>
+            <span class="beer-tooltip-score">4.5</span>
+          </div>
+      </div>
+    <span class="rank">4</span>
+    <div class="beer-info">
+      <div class="beer-name">Truck</div>
+      <div class="beer-brewery">Duration</div>
+      <div class="bar-wrap"><div class="bar" style="width:84%"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg">4.2</div>
+      
+    </div>
+  </div><div class="beer-row has-tooltip">
+    <div class="beer-tooltip">
+        <div class="beer-tooltip-title">Camberwell</div>
+        <div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">💪 Body</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:100%"></div></div>
+            <span class="beer-tooltip-score">5.0</span>
+          </div><div class="beer-tooltip-row">
+            <span class="beer-tooltip-axis">⭐ Overall</span>
+            <div class="beer-tooltip-bar-wrap"><div class="beer-tooltip-bar" style="width:70%"></div></div>
+            <span class="beer-tooltip-score">3.5</span>
+          </div>
+      </div>
+    <span class="rank">5</span>
+    <div class="beer-info">
+      <div class="beer-name">Camberwell</div>
+      <div class="beer-brewery">Duration</div>
+      <div class="bar-wrap"><div class="bar" style="width:80%"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg">4.0</div>
+      
+    </div>
+  </div>
+    </div>
+  </div>
+
+  <!-- Spin the wheel -->
+  <div class="spin-section">
+    <div class="spin-banner">
+      <div class="section-head" style="margin-bottom:0;border-bottom:none;padding-bottom:0">
+        <span class="section-icon">🎰</span>
+        <span class="section-title">Spin the Wheel — rate 15 beers to qualify</span>
+      </div>
+      <div class="spin-qualifier-badge">1 of 5 tasters qualified</div>
+    </div>
+    <div class="spin-row qualified">
+    <div class="spin-label">
+      <span class="spin-name">Taster 1</span>
+      <span class="spin-status q">🎰 Qualifies!</span>
+    </div>
+    <div class="spin-bar-wrap"><div class="spin-bar q" style="width:100%"></div></div>
+    <span class="spin-count">26/15</span>
+    <span class="spin-avg">3.4★</span>
+  </div><div class="spin-row">
+    <div class="spin-label">
+      <span class="spin-name">Taster 2</span>
+      <span class="spin-status">6 more to go</span>
+    </div>
+    <div class="spin-bar-wrap"><div class="spin-bar" style="width:60%"></div></div>
+    <span class="spin-count">9/15</span>
+    <span class="spin-avg">3.9★</span>
+  </div><div class="spin-row">
+    <div class="spin-label">
+      <span class="spin-name">Taster 3</span>
+      <span class="spin-status">8 more to go</span>
+    </div>
+    <div class="spin-bar-wrap"><div class="spin-bar" style="width:47%"></div></div>
+    <span class="spin-count">7/15</span>
+    <span class="spin-avg">5.0★</span>
+  </div><div class="spin-row">
+    <div class="spin-label">
+      <span class="spin-name">Taster 4</span>
+      <span class="spin-status">10 more to go</span>
+    </div>
+    <div class="spin-bar-wrap"><div class="spin-bar" style="width:33%"></div></div>
+    <span class="spin-count">5/15</span>
+    <span class="spin-avg">4.2★</span>
+  </div><div class="spin-row">
+    <div class="spin-label">
+      <span class="spin-name">Taster 5</span>
+      <span class="spin-status">12 more to go</span>
+    </div>
+    <div class="spin-bar-wrap"><div class="spin-bar" style="width:20%"></div></div>
+    <span class="spin-count">3/15</span>
+    <span class="spin-avg">4.0★</span>
+  </div>
+  </div>
+
+  <!-- Most generous + Most critical -->
+  <div class="two-col">
+    <div class="section">
+      <div class="section-head"><span class="section-icon">😄</span><span class="section-title">Most Enthusiastic Taster</span></div>
+      <div class="taster-card">
+    <div class="taster-emoji">🌟</div>
+    <div class="taster-label">Most Enthusiastic</div>
+    <div class="taster-name">Taster 3</div>
+    <div class="taster-avg">5.00 / 5</div>
+    <div class="taster-stars">★★★★★</div>
+    <div class="taster-count">7 ratings</div>
+    <div class="taster-flavour">Loved everything they tried</div>
+  </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><span class="section-icon">🧐</span><span class="section-title">Harshest Critic</span></div>
+      <div class="taster-card">
+    <div class="taster-emoji">🔬</div>
+    <div class="taster-label">Harshest Critic</div>
+    <div class="taster-name">Taster 1</div>
+    <div class="taster-avg">3.42 / 5</div>
+    <div class="taster-stars">★★★☆☆</div>
+    <div class="taster-count">26 ratings</div>
+    <div class="taster-flavour">Hardest scores to impress</div>
+  </div>
+    </div>
+  </div>
+
+  <!-- Axis breakdown + Score distribution -->
+  <div class="two-col">
+    <div class="section">
+      <div class="section-head"><span class="section-icon">🎛️</span><span class="section-title">What People Are Enjoying</span></div>
+      <div class="axis-grid">
+        <div class="axis-card">
+    <div class="axis-header">
+      <span class="axis-icon">💪</span>
+      <span class="axis-name">Body</span>
+      <span class="axis-score">4.7 / 5</span>
+    </div>
+    <div class="axis-bar-wrap"><div class="axis-bar" style="width:93%"></div></div>
+    <div class="axis-stars">★★★★★</div>
+    <div class="axis-top-beer">🏅 Truck <span class="axis-top-score">5.0</span></div>
+    <div class="axis-sample">Based on 3 ratings</div>
+  </div><div class="axis-card">
+    <div class="axis-header">
+      <span class="axis-icon">⭐</span>
+      <span class="axis-name">Overall</span>
+      <span class="axis-score">4.2 / 5</span>
+    </div>
+    <div class="axis-bar-wrap"><div class="axis-bar" style="width:83%"></div></div>
+    <div class="axis-stars">★★★★☆</div>
+    <div class="axis-top-beer">🏅 On The Green <span class="axis-top-score">5.0</span></div>
+    <div class="axis-sample">Based on 27 ratings</div>
+  </div><div class="axis-card">
+    <div class="axis-header">
+      <span class="axis-icon">🌿</span>
+      <span class="axis-name">Hoppiness</span>
+      <span class="axis-score">3.7 / 5</span>
+    </div>
+    <div class="axis-bar-wrap"><div class="axis-bar" style="width:73%"></div></div>
+    <div class="axis-stars">★★★★☆</div>
+    <div class="axis-top-beer">🏅 Another Day Done <span class="axis-top-score">5.0</span></div>
+    <div class="axis-sample">Based on 9 ratings</div>
+  </div><div class="axis-card">
+    <div class="axis-header">
+      <span class="axis-icon">🍋</span>
+      <span class="axis-name">Fruitiness</span>
+      <span class="axis-score">3.6 / 5</span>
+    </div>
+    <div class="axis-bar-wrap"><div class="axis-bar" style="width:72%"></div></div>
+    <div class="axis-stars">★★★★☆</div>
+    <div class="axis-top-beer">🏅 Strataberry Fields <span class="axis-top-score">5.0</span></div>
+    <div class="axis-sample">Based on 5 ratings</div>
+  </div><div class="axis-card">
+    <div class="axis-header">
+      <span class="axis-icon">⚡</span>
+      <span class="axis-name">Bitterness</span>
+      <span class="axis-score">2.6 / 5</span>
+    </div>
+    <div class="axis-bar-wrap"><div class="axis-bar" style="width:52%"></div></div>
+    <div class="axis-stars">★★★☆☆</div>
+    <div class="axis-top-beer">🏅 Nexus <span class="axis-top-score">4.0</span></div>
+    <div class="axis-sample">Based on 5 ratings</div>
+  </div><div class="axis-card">
+    <div class="axis-header">
+      <span class="axis-icon">🍯</span>
+      <span class="axis-name">Sweetness</span>
+      <span class="axis-score">2.0 / 5</span>
+    </div>
+    <div class="axis-bar-wrap"><div class="axis-bar" style="width:40%"></div></div>
+    <div class="axis-stars">★★☆☆☆</div>
+    <div class="axis-top-beer">🏅 Another Day Done <span class="axis-top-score">2.0</span></div>
+    <div class="axis-sample">Based on 1 rating</div>
+  </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><span class="section-icon">📊</span><span class="section-title">Score Distribution</span></div>
+      <div class="dist-row">
+    <span class="dist-label">5★</span>
+    <div class="dist-bar-wrap"><div class="dist-bar" style="width:100%"></div></div>
+    <span class="dist-n">17</span>
+    <span class="dist-pct">34%</span>
+  </div><div class="dist-row">
+    <span class="dist-label">4★</span>
+    <div class="dist-bar-wrap"><div class="dist-bar" style="width:100%"></div></div>
+    <span class="dist-n">17</span>
+    <span class="dist-pct">34%</span>
+  </div><div class="dist-row">
+    <span class="dist-label">3★</span>
+    <div class="dist-bar-wrap"><div class="dist-bar" style="width:59%"></div></div>
+    <span class="dist-n">10</span>
+    <span class="dist-pct">20%</span>
+  </div><div class="dist-row">
+    <span class="dist-label">2★</span>
+    <div class="dist-bar-wrap"><div class="dist-bar" style="width:18%"></div></div>
+    <span class="dist-n">3</span>
+    <span class="dist-pct">6%</span>
+  </div><div class="dist-row">
+    <span class="dist-label">1★</span>
+    <div class="dist-bar-wrap"><div class="dist-bar" style="width:18%"></div></div>
+    <span class="dist-n">3</span>
+    <span class="dist-pct">6%</span>
+  </div>
+      <div style="font-size:0.88rem;color:#4a6b4e;margin-top:16px">
+        68% of all ratings are 4★ or above
+      </div>
+    </div>
+  </div>
+
+  <!-- Top brewery + Still to try -->
+  <div class="two-col">
+    <div class="section">
+      <div class="section-head"><span class="section-icon">🏭</span><span class="section-title">Top Brewery by Average Score</span></div>
+      <div class="beer-row">
+    <span class="rank gold">🥇</span>
+    <div class="beer-info">
+      <div class="beer-name">Baron</div>
+      <div class="beer-brewery">2 beers rated — small sample</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%;opacity:0.4"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="opacity:0.5">5.0</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">2</span>
+    <div class="beer-info">
+      <div class="beer-name">Track</div>
+      <div class="beer-brewery">1 beer rated — small sample</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%;opacity:0.4"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="opacity:0.5">5.0</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">3</span>
+    <div class="beer-info">
+      <div class="beer-name">Cloudwater</div>
+      <div class="beer-brewery">5 beers rated</div>
+      <div class="bar-wrap"><div class="bar" style="width:88%;"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="">4.4</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">4</span>
+    <div class="beer-info">
+      <div class="beer-name">DEYA</div>
+      <div class="beer-brewery">3 beers rated</div>
+      <div class="bar-wrap"><div class="bar" style="width:80%;"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="">4.0</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">5</span>
+    <div class="beer-info">
+      <div class="beer-name">Rivington</div>
+      <div class="beer-brewery">1 beer rated — small sample</div>
+      <div class="bar-wrap"><div class="bar" style="width:80%;opacity:0.4"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="opacity:0.5">4.0</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">6</span>
+    <div class="beer-info">
+      <div class="beer-name">Duration</div>
+      <div class="beer-brewery">29 beers rated</div>
+      <div class="bar-wrap"><div class="bar" style="width:74%;"></div></div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="">3.7</div>
+    </div>
+  </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><span class="section-icon">👀</span><span class="section-title">Still to Try — On Wishlists But Not Tasted Yet</span></div>
+      <div class="beer-row">
+    <span class="rank gold">🥇</span>
+    <div class="beer-info">
+      <div class="beer-name">Shine #2</div>
+      <div class="beer-brewery">Duration</div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="font-size:1rem">3</div>
+      <div class="count">people want it</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">2</span>
+    <div class="beer-info">
+      <div class="beer-name">Goatfell</div>
+      <div class="beer-brewery">Duration</div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="font-size:1rem">3</div>
+      <div class="count">people want it</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">3</span>
+    <div class="beer-info">
+      <div class="beer-name">300 Laps of Your Garden</div>
+      <div class="beer-brewery">Verdant</div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="font-size:1rem">3</div>
+      <div class="count">people want it</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">4</span>
+    <div class="beer-info">
+      <div class="beer-name">Rockin' Chairs</div>
+      <div class="beer-brewery">Polly's</div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="font-size:1rem">3</div>
+      <div class="count">people want it</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">5</span>
+    <div class="beer-info">
+      <div class="beer-name">Geoff</div>
+      <div class="beer-brewery">Baron</div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="font-size:1rem">3</div>
+      <div class="count">people want it</div>
+    </div>
+  </div><div class="beer-row">
+    <span class="rank">6</span>
+    <div class="beer-info">
+      <div class="beer-name">Fold + Fly</div>
+      <div class="beer-brewery">Duration</div>
+    </div>
+    <div class="beer-stats">
+      <div class="avg" style="font-size:1rem">2</div>
+      <div class="count">people want it</div>
+    </div>
+  </div>
+    </div>
+  </div>
+
+  <!-- Activity by day -->
+  <div class="full-width" style="background:#141f15">
+    <div class="section-head"><span class="section-icon">📅</span><span class="section-title">Activity by Day</span></div>
+    <div class="day-cards">
+      <div class="day-card">
+    <div class="day-card-header">
+      <div class="day-card-name">Friday</div>
+      <div class="day-card-date">22 May</div>
+    </div>
+    <div class="day-metric">
+      <span class="day-metric-label">⭐ Ratings</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar rated" style="width:4%"></div></div>
+      <span class="day-metric-n">5</span>
+    </div>
+    
+    <div class="day-metric">
+      <span class="day-metric-label">📋 Wishlisted</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar added" style="width:8%"></div></div>
+      <span class="day-metric-n">11</span>
+    </div>
+  </div><div class="day-card top">
+    <div class="day-card-header">
+      <div class="day-card-name">Saturday 🏆</div>
+      <div class="day-card-date">23 May</div>
+    </div>
+    <div class="day-metric">
+      <span class="day-metric-label">⭐ Ratings</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar rated" style="width:31%"></div></div>
+      <span class="day-metric-n">42</span>
+    </div>
+    <div class="day-metric">
+      <span class="day-metric-label">✓ Beers tried</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar tried" style="width:16%"></div></div>
+      <span class="day-metric-n">22</span>
+    </div>
+    <div class="day-metric">
+      <span class="day-metric-label">📋 Wishlisted</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar added" style="width:52%"></div></div>
+      <span class="day-metric-n">70</span>
+    </div>
+  </div><div class="day-card">
+    <div class="day-card-header">
+      <div class="day-card-name">Sunday</div>
+      <div class="day-card-date">24 May</div>
+    </div>
+    
+    <div class="day-metric">
+      <span class="day-metric-label">✓ Beers tried</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar tried" style="width:4%"></div></div>
+      <span class="day-metric-n">5</span>
+    </div>
+    <div class="day-metric">
+      <span class="day-metric-label">📋 Wishlisted</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar added" style="width:13%"></div></div>
+      <span class="day-metric-n">18</span>
+    </div>
+  </div><div class="day-card">
+    <div class="day-card-header">
+      <div class="day-card-name">Monday</div>
+      <div class="day-card-date">25 May</div>
+    </div>
+    <div class="day-metric">
+      <span class="day-metric-label">⭐ Ratings</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar rated" style="width:2%"></div></div>
+      <span class="day-metric-n">3</span>
+    </div>
+    
+    <div class="day-metric">
+      <span class="day-metric-label">📋 Wishlisted</span>
+      <div class="day-metric-bar-wrap"><div class="day-metric-bar added" style="width:2%"></div></div>
+      <span class="day-metric-n">3</span>
+    </div>
+  </div>
+    </div>
+  </div>
+
+  <!-- Activity by hour -->
+  <div class="full-width">
+    <div class="section-head"><span class="section-icon">⏱️</span><span class="section-title">What Time Are People Most Active? (BST)</span></div>
+    <div class="hour-chart">
+      <div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">5am BST — 9 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>9</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:36%"></div></div>
+    <span class="hour-label">5am</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">7am BST — 10 total</div>
+      <div class="hour-tooltip-row">Sun 24 May: <strong>10</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:40%"></div></div>
+    <span class="hour-label">7am</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">8am BST — 2 total</div>
+      <div class="hour-tooltip-row">Sun 24 May: <strong>2</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:8%"></div></div>
+    <span class="hour-label">8am</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">9am BST — 1 total</div>
+      <div class="hour-tooltip-row">Sun 24 May: <strong>1</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:4%"></div></div>
+    <span class="hour-label">9am</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">11am BST — 25 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>25</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:100%"></div></div>
+    <span class="hour-label">11am</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">12pm BST — 18 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>8</strong></div><div class="hour-tooltip-row">Sun 24 May: <strong>10</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:72%"></div></div>
+    <span class="hour-label">12pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">1pm BST — 25 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>19</strong></div><div class="hour-tooltip-row">Mon 25 May: <strong>6</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:100%"></div></div>
+    <span class="hour-label">1pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">2pm BST — 12 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>12</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:48%"></div></div>
+    <span class="hour-label">2pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">3pm BST — 2 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>2</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:8%"></div></div>
+    <span class="hour-label">3pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">4pm BST — 5 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>5</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:20%"></div></div>
+    <span class="hour-label">4pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">5pm BST — 9 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>9</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:36%"></div></div>
+    <span class="hour-label">5pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">6pm BST — 11 total</div>
+      <div class="hour-tooltip-row">Fri 22 May: <strong>5</strong></div><div class="hour-tooltip-row">Sat 23 May: <strong>6</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:44%"></div></div>
+    <span class="hour-label">6pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">7pm BST — 24 total</div>
+      <div class="hour-tooltip-row">Fri 22 May: <strong>1</strong></div><div class="hour-tooltip-row">Sat 23 May: <strong>23</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:96%"></div></div>
+    <span class="hour-label">7pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">8pm BST — 14 total</div>
+      <div class="hour-tooltip-row">Fri 22 May: <strong>9</strong></div><div class="hour-tooltip-row">Sat 23 May: <strong>5</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:56%"></div></div>
+    <span class="hour-label">8pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">9pm BST — 11 total</div>
+      <div class="hour-tooltip-row">Sat 23 May: <strong>11</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:44%"></div></div>
+    <span class="hour-label">9pm</span>
+  </div><div class="hour-col">
+    <div class="hour-tooltip">
+      <div class="hour-tooltip-title">11pm BST — 1 total</div>
+      <div class="hour-tooltip-row">Fri 22 May: <strong>1</strong></div>
+    </div>
+    <div class="hour-bar-wrap"><div class="hour-bar" style="height:4%"></div></div>
+    <span class="hour-label">11pm</span>
+  </div>
+    </div>
+    <div class="hour-hint">Hover over a bar to see the day-by-day breakdown for that hour</div>
+  </div>
+
+  <!-- Wishlist vs tried -->
+  <div class="full-width" style="background:#141f15">
+    <div class="section-head"><span class="section-icon">📋</span><span class="section-title">Wishlisted vs Actually Tried</span></div>
+    <div style="font-size:0.85rem;color:#4a6b4e;margin-bottom:16px">Green = wishlisted · Amber = actually tried</div>
+    <div class="gap-row">
+    <div class="gap-info">
+      <div class="gap-name">Truck</div>
+      <div class="gap-brewery">Duration</div>
+    </div>
+    <div class="gap-bars">
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Wishlisted</span>
+        <div class="gap-bar-wrap"><div class="gap-bar wishlist" style="width:100%"></div></div>
+        <span class="gap-n">9</span>
+      </div>
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Tried</span>
+        <div class="gap-bar-wrap"><div class="gap-bar tried" style="width:22%"></div></div>
+        <span class="gap-n">2</span>
+      </div>
+    </div>
+  </div><div class="gap-row">
+    <div class="gap-info">
+      <div class="gap-name">Shine #2</div>
+      <div class="gap-brewery">Duration</div>
+    </div>
+    <div class="gap-bars">
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Wishlisted</span>
+        <div class="gap-bar-wrap"><div class="gap-bar wishlist" style="width:33%"></div></div>
+        <span class="gap-n">3</span>
+      </div>
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Tried</span>
+        <div class="gap-bar-wrap"><div class="gap-bar tried" style="width:0%"></div></div>
+        <span class="gap-n">0</span>
+      </div>
+    </div>
+  </div><div class="gap-row">
+    <div class="gap-info">
+      <div class="gap-name">Goatfell</div>
+      <div class="gap-brewery">Duration</div>
+    </div>
+    <div class="gap-bars">
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Wishlisted</span>
+        <div class="gap-bar-wrap"><div class="gap-bar wishlist" style="width:33%"></div></div>
+        <span class="gap-n">3</span>
+      </div>
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Tried</span>
+        <div class="gap-bar-wrap"><div class="gap-bar tried" style="width:0%"></div></div>
+        <span class="gap-n">0</span>
+      </div>
+    </div>
+  </div><div class="gap-row">
+    <div class="gap-info">
+      <div class="gap-name">300 Laps of Your Garden</div>
+      <div class="gap-brewery">Verdant</div>
+    </div>
+    <div class="gap-bars">
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Wishlisted</span>
+        <div class="gap-bar-wrap"><div class="gap-bar wishlist" style="width:33%"></div></div>
+        <span class="gap-n">3</span>
+      </div>
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Tried</span>
+        <div class="gap-bar-wrap"><div class="gap-bar tried" style="width:0%"></div></div>
+        <span class="gap-n">0</span>
+      </div>
+    </div>
+  </div><div class="gap-row">
+    <div class="gap-info">
+      <div class="gap-name">Rockin' Chairs</div>
+      <div class="gap-brewery">Polly's</div>
+    </div>
+    <div class="gap-bars">
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Wishlisted</span>
+        <div class="gap-bar-wrap"><div class="gap-bar wishlist" style="width:33%"></div></div>
+        <span class="gap-n">3</span>
+      </div>
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Tried</span>
+        <div class="gap-bar-wrap"><div class="gap-bar tried" style="width:0%"></div></div>
+        <span class="gap-n">0</span>
+      </div>
+    </div>
+  </div><div class="gap-row">
+    <div class="gap-info">
+      <div class="gap-name">Geoff</div>
+      <div class="gap-brewery">Baron</div>
+    </div>
+    <div class="gap-bars">
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Wishlisted</span>
+        <div class="gap-bar-wrap"><div class="gap-bar wishlist" style="width:33%"></div></div>
+        <span class="gap-n">3</span>
+      </div>
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Tried</span>
+        <div class="gap-bar-wrap"><div class="gap-bar tried" style="width:0%"></div></div>
+        <span class="gap-n">0</span>
+      </div>
+    </div>
+  </div><div class="gap-row">
+    <div class="gap-info">
+      <div class="gap-name">Sunrise</div>
+      <div class="gap-brewery">Beak</div>
+    </div>
+    <div class="gap-bars">
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Wishlisted</span>
+        <div class="gap-bar-wrap"><div class="gap-bar wishlist" style="width:44%"></div></div>
+        <span class="gap-n">4</span>
+      </div>
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Tried</span>
+        <div class="gap-bar-wrap"><div class="gap-bar tried" style="width:22%"></div></div>
+        <span class="gap-n">2</span>
+      </div>
+    </div>
+  </div><div class="gap-row">
+    <div class="gap-info">
+      <div class="gap-name">Sorbetto</div>
+      <div class="gap-brewery">Duration</div>
+    </div>
+    <div class="gap-bars">
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Wishlisted</span>
+        <div class="gap-bar-wrap"><div class="gap-bar wishlist" style="width:44%"></div></div>
+        <span class="gap-n">4</span>
+      </div>
+      <div class="gap-bar-row">
+        <span class="gap-bar-label">Tried</span>
+        <div class="gap-bar-wrap"><div class="gap-bar tried" style="width:22%"></div></div>
+        <span class="gap-n">2</span>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  
+  <!-- Untappd lookups -->
+  <div class="full-width">
+    <div class="section-head"><span class="section-icon">🍺</span><span class="section-title">Looked Up on Untappd</span></div>
+    <div style="font-size:0.85rem;color:#4a6b4e;margin-bottom:16px">Beers people tapped through to check on Untappd — usually means they liked it enough to log it.</div>
+    
+    <div class="untappd-row">
+      <div class="untappd-info"><div class="untappd-name">Truck</div><div class="untappd-brewery">Duration</div></div>
+      <div class="untappd-n">2 clicks</div>
+    </div>
+  </div>
+
+  
+
+</div>
+
+<footer class="footer">
+  Built by <a href="https://dryhop.digital" target="_blank" rel="noopener noreferrer">dryhop.digital</a>
+</footer>
+</body>
+</html>
